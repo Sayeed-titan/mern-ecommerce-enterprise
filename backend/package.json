@@ -10,7 +10,7 @@
     "test:coverage": "jest --coverage",
     "seed": "node utils/seedDatabase.js"
   },
-   "keywords": [
+  "keywords": [
     "ecommerce",
     "mern",
     "redis",
@@ -26,6 +26,7 @@
     "cloudinary": "^1.41.3",
     "compression": "^1.8.1",
     "cors": "^2.8.5",
+    "csv-writer": "^1.6.0",
     "cvs-writer": "^0.0.1",
     "dotenv": "^17.2.3",
     "express": "^5.1.0",

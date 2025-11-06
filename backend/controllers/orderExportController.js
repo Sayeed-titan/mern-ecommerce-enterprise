@@ -7,7 +7,7 @@ const { exportOrdersToCSV } = require('../utils/csvExporter');
 // @desc    Download order invoice
 // @route   GET /api/v1/orders/:id/invoice
 // @access  Private
-exports.downloadInvoice = async (req, res) => {
+const downloadInvoice = async (req, res) => {
   try {
     const order = await Order.findById(req.params.id)
       .populate('user', 'name email')
@@ -76,7 +76,7 @@ exports.downloadInvoice = async (req, res) => {
 // @desc    Export orders to CSV
 // @route   GET /api/v1/orders/export/csv
 // @access  Private (Vendor/Admin)
-exports.exportOrdersCSV = async (req, res) => {
+const exportOrdersCSV = async (req, res) => {
   try {
     const { startDate, endDate, status } = req.query;
 
