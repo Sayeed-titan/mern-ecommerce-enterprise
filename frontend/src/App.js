@@ -3,7 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
-import { AuthProvider, useAuth } from '../context/AuthContext';
+import { AuthProvider, useAuth } from './context/authContext';
 import { CartProvider } from './context/CartContext';
 
 import Navbar from './components/layout/Navbar';
