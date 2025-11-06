@@ -78,12 +78,13 @@ app.use('/api/v1/webhook', require('./routes/webhook'));
 app.use(errorHandler);
 
 // 404 handler
-app.use('*', (req, res) => {
+app.use((req, res) => {
   res.status(404).json({
     success: false,
     message: 'Route not found',
   });
 });
+
 
 const PORT = process.env.PORT || 5000;
 
