@@ -1,25 +1,49 @@
 const Redis = require('ioredis');
 
-// Create Redis client
+// Create Redis client with better error handling
 const redis = new Redis({
   host: process.env.REDIS_HOST || 'localhost',
   port: process.env.REDIS_PORT || 6379,
   password: process.env.REDIS_PASSWORD || undefined,
-  tls: {},
   retryStrategy: (times) => {
+    // Stop retrying after 3 attempts
+    if (times > 3) {
+      console.log('⚠️  Redis connection failed. Running without cache.');
+      return null;
+    }
     const delay = Math.min(times * 50, 2000);
     return delay;
   },
   maxRetriesPerRequest: 3,
+  lazyConnect: true, // Don't connect immediately
+  enableOfflineQueue: false, // Don't queue commands when offline
+});
+
+// Track connection status
+let isRedisConnected = false;
+
+// Try to connect
+redis.connect().catch(() => {
+  console.log('⚠️  Redis unavailable. Running without cache.');
+  isRedisConnected = false;
 });
 
 // Redis event handlers
 redis.on('connect', () => {
   console.log('✅ Redis Connected');
+  isRedisConnected = true;
 });
 
 redis.on('error', (err) => {
-  console.error('❌ Redis Error:', err);
+  // Only log first error, not repeated attempts
+  if (isRedisConnected) {
+    console.error('❌ Redis Error:', err.message);
+    isRedisConnected = false;
+  }
+});
+
+redis.on('close', () => {
+  isRedisConnected = false;
 });
 
 // Cache helper functions
