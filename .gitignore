@@ -1,0 +1,28 @@
+# Node.js
+node_modules/
+.env
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Build output
+dist/
+build/
+
+# React
+*.log
+*.lock
+.DS_Store
+coverage/
+public/static/
+
+# IDEs
+.vscode/
+.idea/
+
+# OS
+Thumbs.db
+Desktop.ini
+
+# Optional: MongoDB dump files
+dump/
