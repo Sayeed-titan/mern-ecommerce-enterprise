@@ -1,6 +1,7 @@
 const Product = require('../models/Product');
 const { clearCache, getCache, setCache } = require('../config/redis');
 const { deleteImage, deleteImages } = require('../config/cloudinary');
+const { emitProductCreated, emitProductUpdate, emitProductDeleted } = require('../utils/socketHelper');
 
 // @desc    Get all products with filtering, sorting, pagination
 // @route   GET /api/v1/products
@@ -160,6 +161,9 @@ exports.createProduct = async (req, res) => {
     // Clear products cache
     await clearCache('products:*');
 
+    // Emit real-time event
+    emitProductCreated(product);
+
     res.status(201).json({
       success: true,
       message: 'Product created successfully',
@@ -227,6 +231,9 @@ exports.updateProduct = async (req, res) => {
     // Clear cache
     await clearCache('products:*');
 
+    // Emit real-time event
+    emitProductUpdate(req.params.id, product);
+
     res.status(200).json({
       success: true,
       message: 'Product updated successfully',
@@ -276,6 +283,9 @@ exports.deleteProduct = async (req, res) => {
 
     // Clear cache
     await clearCache('products:*');
+
+    // Emit real-time event
+    emitProductUpdate(req.params.id, product);
 
     res.status(200).json({
       success: true,

@@ -2,6 +2,7 @@ const Review = require('../models/Review');
 const Product = require('../models/Product');
 const Order = require('../models/Order');
 const { clearCache } = require('../config/redis');
+const { emitReviewAdded } = require('../utils/socketHelper');
 
 // @desc    Create product review
 // @route   POST /api/v1/reviews
@@ -51,6 +52,9 @@ exports.createReview = async (req, res) => {
 
     // Clear cache
     await clearCache('products:*');
+
+    // Emit real-time event
+    emitReviewAdded(product, review);
 
     res.status(201).json({
       success: true,
