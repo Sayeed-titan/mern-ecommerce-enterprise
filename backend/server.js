@@ -2,10 +2,12 @@
 require('dotenv').config();
 
 const express = require('express');
+const http = require('http');
 const cors = require('cors');
 const morgan = require('morgan');
 const helmet = require('helmet');
 const compression = require('compression');
+const { Server } = require('socket.io');
 const connectDB = require('./config/db');
 const { redis } = require('./config/redis');
 const errorHandler = require('./middleware/error');
@@ -15,6 +17,50 @@ connectDB();
 
 // Initialize express
 const app = express();
+const server = http.createServer(app);
+
+// Initialize Socket.io
+const io = new Server(server, {
+  cors: {
+    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+    methods: ['GET', 'POST'],
+    credentials: true,
+  },
+});
+
+// Make io accessible to routes
+app.set('io', io);
+
+// Socket.io connection handling
+io.on('connection', (socket) => {
+  console.log('🔌 User connected:', socket.id);
+
+  // Join product room
+  socket.on('join-product', (productId) => {
+    socket.join(`product-${productId}`);
+    console.log(`User ${socket.id} joined product room: ${productId}`);
+  });
+
+  // Leave product room
+  socket.on('leave-product', (productId) => {
+    socket.leave(`product-${productId}`);
+    console.log(`User ${socket.id} left product room: ${productId}`);
+  });
+
+  // Join products list room
+  socket.on('join-products', () => {
+    socket.join('products-list');
+    console.log(`User ${socket.id} joined products list`);
+  });
+
+  // Disconnect
+  socket.on('disconnect', () => {
+    console.log('🔌 User disconnected:', socket.id);
+  });
+});
+
+// Export io for use in controllers
+global.io = io;
 
 // Security middleware
 app.use(helmet());
@@ -79,7 +125,7 @@ app.use('/api/v1/webhook', require('./routes/webhook'));
 app.use(errorHandler);
 
 // 404 handler
-app.use( (req, res) => {
+app.use((req, res) => {
   res.status(404).json({
     success: false,
     message: 'Route not found',
@@ -88,7 +134,7 @@ app.use( (req, res) => {
 
 const PORT = process.env.PORT || 5000;
 
-const server = app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log(`
   ╔═══════════════════════════════════════════════════════╗
   ║                                                       ║
