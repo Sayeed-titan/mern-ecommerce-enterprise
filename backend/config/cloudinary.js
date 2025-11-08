@@ -2,11 +2,23 @@ const cloudinary = require('cloudinary').v2;
 const { CloudinaryStorage } = require('multer-storage-cloudinary');
 const multer = require('multer');
 
+console.log('🔍 Cloudinary Configuration Check:');
+console.log('Cloud Name:', process.env.CLOUDINARY_CLOUD_NAME ? '✅ Set' : '❌ Missing');
+console.log('API Key:', process.env.CLOUDINARY_API_KEY ? '✅ Set' : '❌ Missing');
+console.log('API Secret:', process.env.CLOUDINARY_API_SECRET ? '✅ Set' : '❌ Missing');
+
 // Configure Cloudinary
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
   api_key: process.env.CLOUDINARY_API_KEY,
   api_secret: process.env.CLOUDINARY_API_SECRET,
+  secure: true,
+});
+
+// Test configuration
+console.log('📡 Cloudinary config loaded:', {
+  cloud_name: cloudinary.config().cloud_name,
+  api_key: cloudinary.config().api_key ? 'Set' : 'Missing',
 });
 
 // Configure Multer Storage for Products
