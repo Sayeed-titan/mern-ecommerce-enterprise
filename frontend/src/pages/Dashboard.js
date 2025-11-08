@@ -132,13 +132,23 @@ const Dashboard = () => {
         </Link>
 
         {(user?.role === 'vendor' || user?.role === 'admin') && (
-          <Link
-            to="/products/new"
-            className="bg-blue-600 text-white rounded-lg shadow p-6 hover:bg-blue-700 transition"
-          >
-            <h3 className="font-semibold text-lg mb-2">Add Product</h3>
-            <p className="text-blue-100 text-sm">Create a new product</p>
-          </Link>
+          <>
+            <Link
+              to="/products/new"
+              className="bg-blue-600 text-white rounded-lg shadow p-6 hover:bg-blue-700 transition"
+            >
+              <h3 className="font-semibold text-lg mb-2">Add Product</h3>
+              <p className="text-blue-100 text-sm">Create a new product</p>
+            </Link>
+
+            <Link
+              to="/manage-products"
+              className="bg-green-600 text-white rounded-lg shadow p-6 hover:bg-green-700 transition"
+            >
+              <h3 className="font-semibold text-lg mb-2">Manage Products</h3>
+              <p className="text-green-100 text-sm">Edit or delete products</p>
+            </Link>
+          </>
         )}
       </div>
 
