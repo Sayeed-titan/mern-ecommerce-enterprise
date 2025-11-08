@@ -5,13 +5,11 @@ const mongoose = require('mongoose');
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const { clearCache } = require('../config/redis');
 
+
 // @desc    Create new order
 // @route   POST /api/v1/orders
 // @access  Private
 exports.createOrder = async (req, res) => {
-  // Note: Transactions disabled for local MongoDB (requires replica set)
-  // In production with MongoDB Atlas, use transactions
-  
   try {
     const {
       orderItems,
@@ -25,7 +23,6 @@ exports.createOrder = async (req, res) => {
     } = req.body;
 
     if (!orderItems || orderItems.length === 0) {
-      await session.abortTransaction();
       return res.status(400).json({
         success: false,
         message: 'No order items',
@@ -67,17 +64,16 @@ exports.createOrder = async (req, res) => {
             });
           }
           
-          await coupon.save({ session });
+          await coupon.save();
         }
       }
     }
 
     // Validate stock and update inventory
     for (const item of orderItems) {
-      const product = await Product.findById(item.product).session(session);
+      const product = await Product.findById(item.product);
 
       if (!product) {
-        await session.abortTransaction();
         return res.status(404).json({
           success: false,
           message: `Product not found: ${item.name}`,
@@ -89,7 +85,6 @@ exports.createOrder = async (req, res) => {
         const variant = product.variants.id(item.variant.variantId);
         
         if (!variant) {
-          await session.abortTransaction();
           return res.status(400).json({
             success: false,
             message: `Variant not found for product: ${item.name}`,
@@ -97,10 +92,9 @@ exports.createOrder = async (req, res) => {
         }
 
         if (variant.stock < item.quantity) {
-          await session.abortTransaction();
           return res.status(400).json({
             success: false,
-            message: `Insufficient stock for ${item.name} (${variant.attributes.size}, ${variant.attributes.color})`,
+            message: `Insufficient stock for ${item.name}`,
           });
         }
 
@@ -109,7 +103,6 @@ exports.createOrder = async (req, res) => {
       } else {
         // Simple product without variants
         if (product.stock < item.quantity) {
-          await session.abortTransaction();
           return res.status(400).json({
             success: false,
             message: `Insufficient stock for ${item.name}`,
@@ -122,7 +115,7 @@ exports.createOrder = async (req, res) => {
 
       // Update sales count
       product.sales += item.quantity;
-      await product.save({ session });
+      await product.save();
 
       // Add vendor to order item
       item.vendor = product.vendor;
@@ -132,26 +125,20 @@ exports.createOrder = async (req, res) => {
     const finalTotalPrice = totalPrice - discountAmount;
 
     // Create order
-    const order = await Order.create(
-      [
-        {
-          user: req.user.id,
-          orderItems,
-          shippingAddress,
-          paymentMethod,
-          itemsPrice,
-          taxPrice,
-          shippingPrice,
-          discountAmount,
-          totalPrice: finalTotalPrice,
-          couponApplied,
-        },
-      ],
-      { session }
-    );
-
-    // Commit transaction
-    await session.commitTransaction();
+    const order = await Order.create({
+      user: req.user.id,
+      orderItems,
+      shippingAddress,
+      paymentMethod,
+      itemsPrice,
+      taxPrice,
+      shippingPrice,
+      discountAmount,
+      totalPrice: finalTotalPrice,
+      couponApplied,
+      isPaid: false, // Will be updated by Stripe webhook
+      status: 'pending',
+    });
 
     // Clear relevant caches
     await clearCache('products:*');
@@ -160,17 +147,14 @@ exports.createOrder = async (req, res) => {
     res.status(201).json({
       success: true,
       message: 'Order created successfully',
-      data: order[0],
+      data: order,
     });
   } catch (error) {
-    await session.abortTransaction();
     console.error('Create order error:', error);
     res.status(500).json({
       success: false,
       message: error.message || 'Failed to create order',
     });
-  } finally {
-    session.endSession();
   }
 };
 
