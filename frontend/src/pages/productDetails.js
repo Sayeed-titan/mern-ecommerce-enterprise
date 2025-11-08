@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import { formatCurrency, calculateDiscount } from '../utils/helpers';
 import { FaStar, FaHeart, FaShoppingCart } from 'react-icons/fa';
 import { toast } from 'react-toastify';
+import ReviewForm from '../components/product/ReviewForm';
 
 const ProductDetails = () => {
   const { id } = useParams();
@@ -263,15 +264,31 @@ const ProductDetails = () => {
         </div>
       </div>
 
-      {/* Reviews Section */}
+{/* Reviews Section */}
       <div className="mt-12">
         <h2 className="text-2xl font-bold mb-6">Customer Reviews</h2>
-        
+
+        {/* Add Review Form - Only for authenticated users */}
+        {isAuthenticated && (
+          <div className="mb-8">
+            <ReviewForm productId={id} onReviewAdded={fetchReviews} />
+          </div>
+        )}
+
+        {/* Reviews List */}
         {reviewLoading ? (
           <div className="text-center py-8">Loading reviews...</div>
         ) : reviews.length === 0 ? (
           <div className="text-center py-8 text-gray-600">
-            No reviews yet. Be the first to review!
+            <p className="mb-2">No reviews yet. Be the first to review!</p>
+            {!isAuthenticated && (
+              <button
+                onClick={() => navigate('/login')}
+                className="text-blue-600 hover:underline"
+              >
+                Login to write a review
+              </button>
+            )}
           </div>
         ) : (
           <div className="space-y-6">
