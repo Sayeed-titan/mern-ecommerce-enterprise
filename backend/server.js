@@ -1,5 +1,7 @@
+// Load env vars FIRST - before any other imports
+require('dotenv').config();
+
 const express = require('express');
-const dotenv = require('dotenv');
 const cors = require('cors');
 const morgan = require('morgan');
 const helmet = require('helmet');
@@ -7,9 +9,6 @@ const compression = require('compression');
 const connectDB = require('./config/db');
 const { redis } = require('./config/redis');
 const errorHandler = require('./middleware/error');
-
-// Load env vars
-dotenv.config();
 
 // Connect to database
 connectDB();
@@ -42,14 +41,16 @@ if (process.env.NODE_ENV === 'development') {
 app.get('/api/health', async (req, res) => {
   try {
     // Check Redis connection
-    await redis.ping();
+    if (redis) {
+      await redis.ping();
+    }
     res.json({
       success: true,
       message: 'Server is healthy',
       timestamp: new Date().toISOString(),
       services: {
         database: 'connected',
-        redis: 'connected',
+        redis: redis ? 'connected' : 'not configured',
       },
     });
   } catch (error) {
@@ -78,13 +79,12 @@ app.use('/api/v1/webhook', require('./routes/webhook'));
 app.use(errorHandler);
 
 // 404 handler
-app.use((req, res) => {
+app.use( (req, res) => {
   res.status(404).json({
     success: false,
     message: 'Route not found',
   });
 });
-
 
 const PORT = process.env.PORT || 5000;
 
@@ -92,9 +92,9 @@ const server = app.listen(PORT, () => {
   console.log(`
   ╔═══════════════════════════════════════════════════════╗
   ║                                                       ║
-  ║   🚀 Server running in ${process.env.NODE_ENV} mode            ║
-  ║   📡 Port: ${PORT}                                      ║
-  ║   🌐 URL: http://localhost:${PORT}                      ║
+  ║   🚀 Server running in ${process.env.NODE_ENV} mode               ║
+  ║   📡 Port: ${PORT}                                       ║
+  ║   🌐 URL: http://localhost:${PORT}                       ║
   ║                                                       ║
   ╚═══════════════════════════════════════════════════════╝
   `);

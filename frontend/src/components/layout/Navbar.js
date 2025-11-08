@@ -33,12 +33,20 @@ const Navbar = () => {
 
   return (
     <nav className="bg-white shadow-lg sticky top-0 z-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8" >
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
           <Link to="/" className="flex items-center space-x-2">
-            <span className="text-2xl font-bold text-blue-600">
-              🛒 E-Commerce
+            <span
+              className="text-2xl font-bold text-blue-600"
+              style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+            >
+              <img
+                src="https://d1nhio0ox7pgb.cloudfront.net/_img/g_collection_png/standard/512x512/shopping_cart.png"
+                style={{ width: '34px', height: '34px' }}
+                alt="Cart"
+              />
+              E-Commerce
             </span>
           </Link>
 

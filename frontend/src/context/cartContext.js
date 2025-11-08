@@ -40,11 +40,13 @@ export const CartProvider = ({ children }) => {
         // Update quantity
         const newItems = [...prevItems];
         newItems[existingItemIndex].quantity += quantity;
-        toast.success('Cart updated');
+        
+        // Use setTimeout to prevent duplicate toasts in StrictMode
+        setTimeout(() => toast.success('Cart updated'), 0);
         return newItems;
       } else {
         // Add new item
-        toast.success('Added to cart');
+        setTimeout(() => toast.success('Added to cart'), 0);
         return [
           ...prevItems,
           {

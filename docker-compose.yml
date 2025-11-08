@@ -19,7 +19,7 @@ services:
   # Redis Cache
   redis:
     image: redis:alpine
-    container_name: ecommerce-redis
+    container_name: redis-ecommerce
     restart: unless-stopped
     ports:
       - '6379:6379'

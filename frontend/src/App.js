@@ -9,10 +9,12 @@ import { CartProvider } from './context/CartContext';
 import Navbar from './components/layout/Navbar';
 import Footer from './components/layout/Footer';
 
-// Pages (create these as simple components)
+// Pages
 import Home from './pages/Home';
 import Products from './pages/Products';
 import ProductDetails from './pages/ProductDetails';
+import ProductForm from './pages/ProductForm';
+import ManageProducts from './pages/ManageProducts';
 import Cart from './pages/Cart';
 import Checkout from './pages/Checkout';
 import Login from './pages/Login';
@@ -59,7 +61,7 @@ function AppContent() {
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
 
-          {/* Protected Routes */}
+          {/* Protected Routes - All Users */}
           <Route
             path="/cart"
             element={
@@ -113,6 +115,32 @@ function AppContent() {
             element={
               <ProtectedRoute>
                 <Wishlist />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Protected Routes - Vendor/Admin Only */}
+          <Route
+            path="/products/new"
+            element={
+              <ProtectedRoute requiredRole="vendor">
+                <ProductForm />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/products/edit/:id"
+            element={
+              <ProtectedRoute requiredRole="vendor">
+                <ProductForm />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/manage-products"
+            element={
+              <ProtectedRoute requiredRole="vendor">
+                <ManageProducts />
               </ProtectedRoute>
             }
           />

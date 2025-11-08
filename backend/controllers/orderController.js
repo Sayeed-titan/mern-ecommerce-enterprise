@@ -9,9 +9,9 @@ const { clearCache } = require('../config/redis');
 // @route   POST /api/v1/orders
 // @access  Private
 exports.createOrder = async (req, res) => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
-
+  // Note: Transactions disabled for local MongoDB (requires replica set)
+  // In production with MongoDB Atlas, use transactions
+  
   try {
     const {
       orderItems,

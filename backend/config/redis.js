@@ -1,55 +1,73 @@
 const Redis = require('ioredis');
 
-// Create Redis client with better error handling
-const redis = new Redis({
-  host: process.env.REDIS_HOST || 'localhost',
-  port: process.env.REDIS_PORT || 6379,
-  password: process.env.REDIS_PASSWORD || undefined,
-  retryStrategy: (times) => {
-    // Stop retrying after 3 attempts
-    if (times > 3) {
-      console.log('⚠️  Redis connection failed. Running without cache.');
-      return null;
-    }
-    const delay = Math.min(times * 50, 2000);
-    return delay;
-  },
-  maxRetriesPerRequest: 3,
-  lazyConnect: true, // Don't connect immediately
-  enableOfflineQueue: false, // Don't queue commands when offline
-});
+let redis = null;
+let redisAvailable = false;
 
-// Track connection status
-let isRedisConnected = false;
+console.log('🔍 Connecting to Redis...');
+console.log('Host:', process.env.REDIS_HOST || 'localhost');
+console.log('Port:', process.env.REDIS_PORT || 6379);
 
-// Try to connect
-redis.connect().catch(() => {
-  console.log('⚠️  Redis unavailable. Running without cache.');
-  isRedisConnected = false;
-});
+try {
+  redis = new Redis({
+    host: process.env.REDIS_HOST || 'localhost',
+    port: process.env.REDIS_PORT || 6379,
+    password: process.env.REDIS_PASSWORD || undefined,
+    retryStrategy: (times) => {
+      if (times > 3) {
+        console.log('❌ Redis: Max retries reached');
+        return null;
+      }
+      console.log(`🔄 Redis: Retry attempt ${times}/3`);
+      return Math.min(times * 500, 2000);
+    },
+    maxRetriesPerRequest: 3,
+    lazyConnect: true,
+  });
 
-// Redis event handlers
-redis.on('connect', () => {
-  console.log('✅ Redis Connected');
-  isRedisConnected = true;
-});
+  redis.on('connect', () => {
+    redisAvailable = true;
+    console.log('✅ Redis: Connected');
+  });
 
-redis.on('error', (err) => {
-  // Only log first error, not repeated attempts
-  if (isRedisConnected) {
-    console.error('❌ Redis Error:', err.message);
-    isRedisConnected = false;
-  }
-});
+  redis.on('ready', () => {
+    redisAvailable = true;
+    console.log('✅ Redis: Ready');
+  });
 
-redis.on('close', () => {
-  isRedisConnected = false;
-});
+  redis.on('error', (err) => {
+    redisAvailable = false;
+    console.log('❌ Redis Error:', err.message);
+  });
 
-// Cache helper functions
+  redis.on('close', () => {
+    redisAvailable = false;
+    console.log('⚠️  Redis: Connection closed');
+  });
+
+  // Connect
+  redis.connect()
+    .then(() => {
+      console.log('✅ Redis: Connection established');
+      return redis.ping();
+    })
+    .then((result) => {
+      console.log('✅ Redis: PING successful ->', result);
+      redisAvailable = true;
+    })
+    .catch((error) => {
+      console.log('❌ Redis: Failed to connect ->', error.message);
+      redisAvailable = false;
+    });
+    
+} catch (error) {
+  console.log('❌ Redis: Initialization error ->', error.message);
+  redisAvailable = false;
+}
+
+// Cache middleware
 const cacheMiddleware = (duration = 300) => {
   return async (req, res, next) => {
-    if (req.method !== 'GET') {
+    if (!redisAvailable || req.method !== 'GET') {
       return next();
     }
 
@@ -63,78 +81,92 @@ const cacheMiddleware = (duration = 300) => {
         return res.json(JSON.parse(cachedData));
       }
 
-      // Store original res.json function
       const originalJson = res.json.bind(res);
 
-      // Override res.json to cache the response
       res.json = (data) => {
-        redis.setex(key, duration, JSON.stringify(data));
-        console.log(`💾 Cache SET: ${key} (${duration}s)`);
+        if (redisAvailable) {
+          redis.setex(key, duration, JSON.stringify(data))
+            .catch(() => {});
+          console.log(`💾 Cache SET: ${key} (${duration}s)`);
+        }
         return originalJson(data);
       };
 
       next();
     } catch (error) {
-      console.error('Cache middleware error:', error);
+      console.error('Cache error:', error.message);
       next();
     }
   };
 };
 
-// Clear cache by pattern
+// Clear cache
 const clearCache = async (pattern = '*') => {
+  if (!redisAvailable) return;
+  
   try {
     const keys = await redis.keys(`cache:${pattern}`);
     if (keys.length > 0) {
       await redis.del(...keys);
-      console.log(`🗑️  Cleared ${keys.length} cache keys matching: ${pattern}`);
+      console.log(`🗑️  Cleared ${keys.length} cache keys`);
     }
   } catch (error) {
-    console.error('Clear cache error:', error);
+    console.error('Clear cache error:', error.message);
   }
 };
 
 // Get cached data
 const getCache = async (key) => {
+  if (!redisAvailable) return null;
+  
   try {
     const data = await redis.get(`cache:${key}`);
     return data ? JSON.parse(data) : null;
   } catch (error) {
-    console.error('Get cache error:', error);
     return null;
   }
 };
 
 // Set cached data
 const setCache = async (key, data, duration = 300) => {
+  if (!redisAvailable) return;
+  
   try {
     await redis.setex(`cache:${key}`, duration, JSON.stringify(data));
-    console.log(`💾 Cache SET: ${key} (${duration}s)`);
   } catch (error) {
-    console.error('Set cache error:', error);
+    console.error('Set cache error:', error.message);
   }
 };
 
-// Increment counter (for analytics)
+// Increment counter
 const incrementCounter = async (key, amount = 1) => {
+  if (!redisAvailable) return 0;
+  
   try {
     return await redis.incrby(key, amount);
   } catch (error) {
-    console.error('Increment counter error:', error);
     return 0;
   }
 };
 
-// Get counter value
+// Get counter
 const getCounter = async (key) => {
+  if (!redisAvailable) return 0;
+  
   try {
     const value = await redis.get(key);
     return value ? parseInt(value) : 0;
   } catch (error) {
-    console.error('Get counter error:', error);
     return 0;
   }
 };
+
+// Graceful shutdown
+process.on('SIGTERM', async () => {
+  if (redis && redisAvailable) {
+    await redis.quit();
+  }
+});
 
 module.exports = {
   redis,
