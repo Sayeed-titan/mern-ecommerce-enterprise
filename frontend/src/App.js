@@ -5,6 +5,8 @@ import 'react-toastify/dist/ReactToastify.css';
 
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { CartProvider } from './context/CartContext';
+import { SocketProvider } from './context/SocketContext';
+
 
 import Navbar from './components/layout/Navbar';
 import Footer from './components/layout/Footer';
@@ -160,7 +162,9 @@ function App() {
     <Router>
       <AuthProvider>
         <CartProvider>
-          <AppContent />
+          <SocketProvider>
+            <AppContent />
+          </SocketProvider>
         </CartProvider>
       </AuthProvider>
     </Router>
