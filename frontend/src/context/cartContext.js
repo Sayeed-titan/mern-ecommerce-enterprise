@@ -1,5 +1,6 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import { toast } from 'react-toastify';
+import { useAuth } from './AuthContext';
 
 const CartContext = createContext();
 
@@ -12,20 +13,39 @@ export const useCart = () => {
 };
 
 export const CartProvider = ({ children }) => {
+  const { user } = useAuth();
   const [cartItems, setCartItems] = useState([]);
 
-  // Load cart from localStorage on mount
+  // Get cart key based on user
+  const getCartKey = () => {
+    return user ? `cart_${user._id}` : 'cart_guest';
+  };
+
+  // Load cart from localStorage for specific user
   useEffect(() => {
-    const savedCart = localStorage.getItem('cart');
-    if (savedCart) {
-      setCartItems(JSON.parse(savedCart));
+    if (user) {
+      const cartKey = getCartKey();
+      const savedCart = localStorage.getItem(cartKey);
+      if (savedCart) {
+        setCartItems(JSON.parse(savedCart));
+      } else {
+        // Clear cart if switching users
+        setCartItems([]);
+      }
+    } else {
+      // Guest cart
+      const guestCart = localStorage.getItem('cart_guest');
+      if (guestCart) {
+        setCartItems(JSON.parse(guestCart));
+      }
     }
-  }, []);
+  }, [user]);
 
   // Save cart to localStorage whenever it changes
   useEffect(() => {
-    localStorage.setItem('cart', JSON.stringify(cartItems));
-  }, [cartItems]);
+    const cartKey = getCartKey();
+    localStorage.setItem(cartKey, JSON.stringify(cartItems));
+  }, [cartItems, user]);
 
   // Add item to cart
   const addToCart = (product, quantity = 1, variant = null) => {
@@ -37,15 +57,11 @@ export const CartProvider = ({ children }) => {
       );
 
       if (existingItemIndex > -1) {
-        // Update quantity
         const newItems = [...prevItems];
         newItems[existingItemIndex].quantity += quantity;
-        
-        // Use setTimeout to prevent duplicate toasts in StrictMode
         setTimeout(() => toast.success('Cart updated'), 0);
         return newItems;
       } else {
-        // Add new item
         setTimeout(() => toast.success('Added to cart'), 0);
         return [
           ...prevItems,
@@ -94,6 +110,8 @@ export const CartProvider = ({ children }) => {
   // Clear cart
   const clearCart = () => {
     setCartItems([]);
+    const cartKey = getCartKey();
+    localStorage.removeItem(cartKey);
     toast.info('Cart cleared');
   };
 
@@ -102,8 +120,8 @@ export const CartProvider = ({ children }) => {
     (total, item) => total + item.price * item.quantity,
     0
   );
-  const tax = subtotal * 0.1; // 10% tax
-  const shipping = subtotal > 50 ? 0 : 10; // Free shipping over $50
+  const tax = subtotal * 0.1;
+  const shipping = subtotal > 50 ? 0 : 10;
   const total = subtotal + tax + shipping;
 
   const value = {
