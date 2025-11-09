@@ -26,6 +26,8 @@ import Orders from './pages/Orders';
 import OrderDetails from './pages/OrderDetails';
 import Profile from './pages/Profile';
 import Wishlist from './pages/Wishlist';
+import OrderSuccess from './pages/OrderSuccess';
+
 
 // Protected Route Component
 const ProtectedRoute = ({ children, requiredRole }) => {
@@ -143,6 +145,15 @@ function AppContent() {
             element={
               <ProtectedRoute requiredRole="vendor">
                 <ManageProducts />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/order-success/:orderId"
+            element={
+              <ProtectedRoute>
+                <OrderSuccess />
               </ProtectedRoute>
             }
           />
