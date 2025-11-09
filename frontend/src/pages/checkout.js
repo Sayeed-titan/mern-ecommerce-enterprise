@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
@@ -11,6 +11,8 @@ const Checkout = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+  const isOrderPlaced = useRef(false); // Flag to track if order was placed
+  const shouldRedirectToCart = useRef(false); // Flag for cart redirect
   
   const [shippingAddress, setShippingAddress] = useState({
     street: '',
@@ -43,54 +45,56 @@ const Checkout = () => {
     }
   };
 
-const handlePlaceOrder = async () => {
-  // Validate address
-  if (!shippingAddress.street || !shippingAddress.city || !shippingAddress.zipCode) {
-    toast.error('Please fill in all shipping address fields');
-    return;
-  }
+  const handlePlaceOrder = async () => {
+    // Validate address
+    if (!shippingAddress.street || !shippingAddress.city || !shippingAddress.zipCode) {
+      toast.error('Please fill in all shipping address fields');
+      return;
+    }
 
-  setLoading(true);
+    setLoading(true);
 
-  try {
-    const orderData = {
-      orderItems: cartItems.map((item) => ({
-        product: item.product._id,
-        name: item.product.name,
-        quantity: item.quantity,
-        price: item.price,
-        image: item.product.images[0]?.url,
-        variant: item.variant ? {
-          variantId: item.variant._id,
-          sku: item.variant.sku,
-          attributes: item.variant.attributes,
-        } : undefined,
-      })),
-      shippingAddress,
-      paymentMethod: 'stripe',
-      itemsPrice: subtotal,
-      taxPrice: tax,
-      shippingPrice: shipping,
-      totalPrice: total - discount,
-      couponCode: couponApplied ? couponCode : undefined,
-    };
+    try {
+      const orderData = {
+        orderItems: cartItems.map((item) => ({
+          product: item.product._id,
+          name: item.product.name,
+          quantity: item.quantity,
+          price: item.price,
+          image: item.product.images[0]?.url,
+          variant: item.variant ? {
+            variantId: item.variant._id,
+            sku: item.variant.sku,
+            attributes: item.variant.attributes,
+          } : undefined,
+        })),
+        shippingAddress,
+        paymentMethod: 'stripe',
+        itemsPrice: subtotal,
+        taxPrice: tax,
+        shippingPrice: shipping,
+        totalPrice: total - discount,
+        couponCode: couponApplied ? couponCode : undefined,
+      };
 
-    const { data } = await API.post('/orders', orderData);
-    
-    toast.success('Order placed successfully!');
-    clearCart();
-    
-    // Redirect to success page
-    navigate(`/order-success/${data.data._id}`);
-  } catch (error) {
-    console.error('Order error:', error);
-    toast.error(error.response?.data?.message || 'Failed to place order');
-  } finally {
-    setLoading(false);
-  }
-};
+      const { data } = await API.post('/orders', orderData);
+      
+      isOrderPlaced.current = true; // Set flag before clearing cart
+      toast.success('Order placed successfully!');
+      clearCart();
+      
+      // Redirect to success page
+      navigate(`/order-success/${data.data._id}`);
+    } catch (error) {
+      console.error('Order error:', error);
+      toast.error(error.response?.data?.message || 'Failed to place order');
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  if (cartItems.length === 0) {
+  // Only redirect to cart if items are empty AND order wasn't just placed
+  if (cartItems.length === 0 && !isOrderPlaced.current) {
     navigate('/cart');
     return null;
   }

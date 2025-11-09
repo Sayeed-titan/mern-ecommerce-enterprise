@@ -192,7 +192,7 @@ exports.updateProduct = async (req, res) => {
       });
     }
 
-    // Check ownership (vendor can only update their products)
+    // Check ownership
     if (
       req.user.role === 'vendor' &&
       product.vendor.toString() !== req.user.id
@@ -203,25 +203,54 @@ exports.updateProduct = async (req, res) => {
       });
     }
 
-    // Handle new image uploads
+    // Handle images
+    let finalImages = [...product.images];
+
+    // If existingImages sent from frontend, use only those
+    if (req.body.existingImages) {
+      try {
+        const existingImages = JSON.parse(req.body.existingImages);
+        
+        // Find images to delete (in DB but not in existingImages)
+        const imagesToDelete = product.images.filter(
+          img => !existingImages.find(ei => ei.public_id === img.public_id)
+        );
+
+        // Delete removed images from Cloudinary
+        for (const img of imagesToDelete) {
+          try {
+            await deleteImage(img.public_id);
+            console.log('Deleted old image:', img.public_id);
+          } catch (err) {
+            console.error('Error deleting image:', err);
+          }
+        }
+
+        finalImages = existingImages;
+      } catch (err) {
+        console.error('Error parsing existingImages:', err);
+      }
+    }
+
+    // Add new uploaded images
     if (req.files && req.files.length > 0) {
       const newImages = req.files.map(file => ({
         url: file.path,
         public_id: file.filename,
       }));
       
-      // Add to existing images or replace
-      if (req.body.replaceImages === 'true') {
-        // Delete old images from Cloudinary
-        const publicIds = product.images.map(img => img.public_id);
-        if (publicIds.length > 0) {
-          await deleteImages(publicIds);
-        }
-        req.body.images = newImages;
-      } else {
-        req.body.images = [...product.images, ...newImages];
-      }
+      finalImages = [...finalImages, ...newImages];
     }
+
+    // Limit to 5 images
+    if (finalImages.length > 5) {
+      return res.status(400).json({
+        success: false,
+        message: 'Maximum 5 images allowed',
+      });
+    }
+
+    req.body.images = finalImages;
 
     product = await Product.findByIdAndUpdate(req.params.id, req.body, {
       new: true,
@@ -231,8 +260,11 @@ exports.updateProduct = async (req, res) => {
     // Clear cache
     await clearCache('products:*');
 
-    // Emit real-time event
-    emitProductUpdate(req.params.id, product);
+    // Emit real-time update
+    if (global.io) {
+      global.io.to(`product-${req.params.id}`).emit('product-updated', product);
+      global.io.to('products-list').emit('products-updated');
+    }
 
     res.status(200).json({
       success: true,

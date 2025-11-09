@@ -123,7 +123,17 @@ const orderSchema = new mongoose.Schema(
     // Order status
     status: {
       type: String,
-      enum: ['pending', 'processing', 'shipped', 'delivered', 'cancelled', 'refunded'],
+      enum: [
+        'pending',
+        'confirmed',
+        'processing', 
+        'ready_for_delivery',
+        'shipped',
+        'out_for_delivery',
+        'delivered',
+        'cancelled',
+        'refunded'
+      ],
       default: 'pending',
     },
     // Tracking
