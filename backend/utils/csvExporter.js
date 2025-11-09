@@ -1,7 +1,12 @@
 const createCsvWriter = require('csv-writer').createObjectCsvWriter;
 const path = require('path');
 
-// Export orders to CSV
+/**
+ * Export orders to CSV format
+ * @param {Array} orders - Array of order objects
+ * @param {String} filename - Output filename
+ * @returns {Promise<String>} - Path to generated CSV file
+ */
 const exportOrdersToCSV = async (orders, filename) => {
   const outputPath = path.join(__dirname, '../uploads', filename);
 
@@ -9,29 +14,63 @@ const exportOrdersToCSV = async (orders, filename) => {
     path: outputPath,
     header: [
       { id: 'orderNumber', title: 'Order Number' },
+      { id: 'invoiceNumber', title: 'Invoice Number' },
       { id: 'customerName', title: 'Customer Name' },
       { id: 'customerEmail', title: 'Customer Email' },
-      { id: 'totalPrice', title: 'Total Amount' },
       { id: 'status', title: 'Status' },
-      { id: 'isPaid', title: 'Paid' },
-      { id: 'isDelivered', title: 'Delivered' },
+      { id: 'paymentMethod', title: 'Payment Method' },
+      { id: 'isPaid', title: 'Payment Status' },
+      { id: 'items', title: 'Items' },
+      { id: 'subtotal', title: 'Subtotal' },
+      { id: 'tax', title: 'Tax' },
+      { id: 'shipping', title: 'Shipping' },
+      { id: 'discount', title: 'Discount' },
+      { id: 'totalPrice', title: 'Total' },
+      { id: 'shippingAddress', title: 'Shipping Address' },
       { id: 'createdAt', title: 'Order Date' },
     ],
   });
 
-  const records = orders.map(order => ({
-    orderNumber: order.orderNumber,
-    customerName: order.user?.name || 'N/A',
-    customerEmail: order.user?.email || 'N/A',
-    totalPrice: `$${order.totalPrice.toFixed(2)}`,
-    status: order.status,
-    isPaid: order.isPaid ? 'Yes' : 'No',
-    isDelivered: order.isDelivered ? 'Yes' : 'No',
-    createdAt: new Date(order.createdAt).toLocaleDateString(),
-  }));
+  const records = orders.map(order => {
+    // Format items list
+    const items = order.orderItems
+      .map(item => `${item.name} (Qty: ${item.quantity} @ ${item.price.toFixed(2)})`)
+      .join('; ');
+
+    // Format address
+    const shippingAddress = `${order.shippingAddress.street}, ${order.shippingAddress.city}, ${order.shippingAddress.state} ${order.shippingAddress.zipCode}, ${order.shippingAddress.country}`;
+
+    return {
+      orderNumber: order.orderNumber,
+      invoiceNumber: order.invoiceNumber || order.orderNumber,
+      customerName: order.user?.name || 'N/A',
+      customerEmail: order.user?.email || 'N/A',
+      status: order.status,
+      paymentMethod: order.paymentMethod,
+      isPaid: order.isPaid ? 'Paid' : 'Pending',
+      items: items,
+      subtotal: `${order.itemsPrice.toFixed(2)}`,
+      tax: `${order.taxPrice.toFixed(2)}`,
+      shipping: `${order.shippingPrice.toFixed(2)}`,
+      discount: `${(order.discountAmount || 0).toFixed(2)}`,
+      totalPrice: `${order.totalPrice.toFixed(2)}`,
+      shippingAddress: shippingAddress,
+      createdAt: new Date(order.createdAt).toLocaleDateString(),
+    };
+  });
 
   await csvWriter.writeRecords(records);
   return outputPath;
+};
+
+/**
+ * Export a single order to CSV
+ * @param {Object} order - Order object
+ * @param {String} filename - Output filename
+ * @returns {Promise<String>} - Path to generated CSV file
+ */
+const exportSingleOrderToCSV = (order, filename) => {
+  return exportOrdersToCSV([order], filename);
 };
 
 // Export products to CSV
@@ -55,7 +94,7 @@ const exportProductsToCSV = async (products, filename) => {
   const records = products.map(product => ({
     name: product.name,
     category: product.category,
-    price: `$${product.price.toFixed(2)}`,
+    price: `${product.price.toFixed(2)}`,
     stock: product.hasVariants ? product.totalStock : product.stock,
     sales: product.sales,
     rating: product.ratings.average.toFixed(1),
@@ -83,9 +122,9 @@ const exportAnalyticsToCSV = async (data, filename, type = 'sales') => {
 
     records = data.map(item => ({
       period: item._id,
-      revenue: `$${item.totalRevenue?.toFixed(2) || 0}`,
+      revenue: `${item.totalRevenue?.toFixed(2) || 0}`,
       orders: item.orderCount || 0,
-      avgOrder: `$${item.avgOrderValue?.toFixed(2) || 0}`,
+      avgOrder: `${item.avgOrderValue?.toFixed(2) || 0}`,
     }));
   } else if (type === 'products') {
     header = [
@@ -98,7 +137,7 @@ const exportAnalyticsToCSV = async (data, filename, type = 'sales') => {
     records = data.map(item => ({
       name: item.name,
       sales: item.sales,
-      revenue: `$${(item.sales * item.price).toFixed(2)}`,
+      revenue: `${(item.sales * item.price).toFixed(2)}`,
       views: item.views,
     }));
   }
@@ -110,6 +149,7 @@ const exportAnalyticsToCSV = async (data, filename, type = 'sales') => {
 
 module.exports = {
   exportOrdersToCSV,
+  exportSingleOrderToCSV,
   exportProductsToCSV,
   exportAnalyticsToCSV,
 };
